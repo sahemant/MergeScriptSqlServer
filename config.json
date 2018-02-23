@@ -1,0 +1,12 @@
+{
+    "AzureSqlServerProperties": {
+        "ServerLocation":"database server location",
+        "Database" : "Database name",
+        "Username" : "Username",
+        "Password" : "Password"
+    },
+    "TableNames":[
+        "dbo.spt_monitor",
+        "Staging.Truck"
+    ]
+}
