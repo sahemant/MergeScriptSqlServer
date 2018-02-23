@@ -3,7 +3,7 @@ from appJar import gui
 def connect():
     server = 'tcp:[azure sql server address ].database.windows.net' 
     database = 'database name' 
-    username = 'username' 
+    username = 'username  sersfs' 
     password = 'password'
     cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
     return cnxn
