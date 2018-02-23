@@ -1,19 +1,20 @@
 import pyodbc 
-def connect():
-    server = 'tcp:[azure sql server address ].database.windows.net' 
-    database = 'database name' 
-    username = 'username  sersfs' 
-    password = 'password'
+import json
+def connect(serverLocation,databaseName,username,password):
+    server = 'tcp:{0}'.format(serverLocation) 
+    database = databaseName 
+    username = username 
+    password = password
     cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
     return cnxn
 def generateScript(SchemaName,TableName,conn,f):
-    f.write('--[{0}].[{1}]\n\r'.format(SchemaName,TableName))
+    f.write('--[{0}].[{1}]\n'.format(SchemaName,TableName))
     queryIdentity = 'select name from sys.identity_columns where OBJECT_NAME(object_id) = \'{0}\' and OBJECT_SCHEMA_NAME(object_id) = \'{1}\' '.format(TableName,SchemaName)
     cursor = conn.execute(queryIdentity)
     rows = cursor.fetchall()
     flagIndentity=False
     if len(rows)>0:   
-        f.write('SET IDENTITY_INSERT [{0}].[{1}] ON\n\rGO\n\r'.format(SchemaName,TableName))
+        f.write('SET IDENTITY_INSERT [{0}].[{1}] ON\nGO\n'.format(SchemaName,TableName))
         flagIdentity = True
     else:
         print 'no identity for {0}.{1}'.format(SchemaName,TableName) 
@@ -32,6 +33,7 @@ def generateScript(SchemaName,TableName,conn,f):
         cursor = conn.execute(query2)
     except:
         print query2
+        print '{0}.{1} might not have primark key.'.format(SchemaName ,TableName)
         return
     rows=cursor.fetchall()
     pk_names = list()
@@ -64,7 +66,7 @@ def generateScript(SchemaName,TableName,conn,f):
         x = '['+r.COLUMN_NAME+'] '+r.DATA_TYPE+''+length+' '+nullable
         columnNames.append(x)
         i+=1
-    f.write('CREATE TABLE [{0}] ( {1} )\n\r'.format(tempTableName,(",".join(columnNames))))
+    f.write('SELECT * INTO [{0}] FROM\n'.format(tempTableName,(",".join(columnNames))))
     columnParamList = ",".join(realColumnNames)
     query4 = 'select {0} from [{1}].[{2}]'.format(columnParamList,SchemaName,TableName)
     #print query4
@@ -109,9 +111,9 @@ def generateScript(SchemaName,TableName,conn,f):
                     return
             flag=True
             i+=1
-        f.write('INSERT INTO {0} VALUES( {1} )\n\r'.format(tempTableName,l.encode('utf-8')))
-    f.write('MERGE [{0}].[{1}] Target\n\r'.format(SchemaName,TableName))
-    f.write('USING (SELECT * FROM {0}) AS SOURCE\n\r'.format(tempTableName))
+        f.write('INSERT INTO {0} VALUES( {1} )\n'.format(tempTableName,l.encode('utf-8')))
+    f.write('MERGE [{0}].[{1}] Target\n'.format(SchemaName,TableName))
+    f.write('USING (\n\tSELECT *\n\t FROM {0}\n\t) AS SOURCE\n'.format(tempTableName))
     flag=False
     l=''
     for pk in pk_names:
@@ -119,35 +121,36 @@ def generateScript(SchemaName,TableName,conn,f):
             l=l+' AND '
         l=l+('Source.{0} = Target.{0}'.format(pk))
         flag=True
-    f.write('ON {0}\n\r'.format(l))
-    f.write('WHEN MATCHED THEN\n\r')
+    f.write('\tON {0}\n'.format(l))
+    f.write('WHEN MATCHED\n\tTHEN\n')
     flag=False
     l=''
     for col in justCN:
         if col not in pk_names:
             if flag:
-                l=l+' , '
+                l=l+' \n\t\t\t,'
             l = l+ ( 'Target.{0} = Source.{0}'.format(col))
             flag=True
-    f.write('UPDATE SET {0}\n\r'.format(l))
-    f.write('WHEN NOT MATCHED THEN\n\r')
-    f.write('INSERT ( {0} )\n\r'.format(columnParamList))
+    f.write('\t\tUPDATE\n\t\tSET {0}\n'.format(l))
+    f.write('WHEN NOT MATCHED\n\tTHEN\n')
+    f.write('\t\tINSERT (\n\t\t\t {0}\n\t\t\t)\n'.format(columnParamList.replace(',','\n\t\t\t,')))
     flag=False
     l=''
     for col in justCN:
         if flag:
-            l = l+','
+            l = l+'\n\t\t\t,'
         l = l + ('source.[{0}]'.format(col))
         flag=True
-    f.write('VALUES ( {0} );\n\rGO\n\r'.format(l))
+    f.write('\t\tVALUES (\n\t\t\t {0}\n\t\t\t);\nGO\n'.format(l))
+    f.write('DROP TABLE {0}\n'.format(tempTableName))
     if flagIdentity:
-        f.write('SET IDENTITY_INSERT [{0}].[{1}] OFF\n\rGO\n\r'.format(SchemaName,TableName))
+        f.write('SET IDENTITY_INSERT [{0}].[{1}] OFF\nGO\n'.format(SchemaName,TableName))
             
         
 
 app=app2=None
 connection = None
-def main(tables):
+def start(tables):
     global connection
     f=open('output.sql','w')
     for table in tables:
@@ -155,10 +158,29 @@ def main(tables):
         generateScript(Schema,TableName,connection,f)
 
 
+def readConfig(filename):
+    serverLocation = databaseName = username = password = None
+    configText = None
+    with open(filename,'r') as f:
+        configText=f.read()
+    configDict = json.loads(configText)
+    serverLocation = configDict['AzureSqlServerProperties']['ServerLocation']
+    databaseName = configDict['AzureSqlServerProperties']['Database']
+    username = configDict['AzureSqlServerProperties']['Username']
+    password = configDict['AzureSqlServerProperties']['Password']
+    requiredTables = list(configDict['TableNames'])
+    return serverLocation,databaseName,username,password,requiredTables
+
 
 def main():
     global connection
-    connection=connect()
+    try:
+        #print readConfig('config.json')
+        serverLocation , databaseName,username,password,requiredTables = readConfig('config.json')
+    except:
+        print 'Some Error Reading Config File'
+        return
+    connection=connect(serverLocation,databaseName,username,password)
     hierarchyListQuery = open('hierarchyList.sql','r').read()
     tableListCursor = connection.execute(hierarchyListQuery)
     rows = tableListCursor.fetchall()
@@ -167,22 +189,23 @@ def main():
         tableNames.append(r[0]+'.'+r[1])
     tableNames = tableNames[::-1]
     connection.close()
-    connection=connect()
+    connection=connect(serverLocation,databaseName,username,password)
 
-    requiredTables = [
-    'App.ProfileLevel'
-
-        ]
+    #requiredTables = [
+    #'App.ProfileLevel'
+    #
+     #   ]
 
     finalTables = list()
     processed = 0
-    print tableNames
+    #print tableNames
     for t in tableNames:
         if t in requiredTables:
             print t
             processed+=1
             finalTables.append(t)
-    main(finalTables)
+    start(finalTables)
     print processed
+main()
 
 

@@ -1,6 +1,6 @@
 {
     "AzureSqlServerProperties": {
-        "ServerLocation":"database server location",
+        "ServerLocation":"databaseServerLocation ex: [sql_db_server.database.windows.net]",
         "Database" : "Database name",
         "Username" : "Username",
         "Password" : "Password"
