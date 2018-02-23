@@ -1,5 +1,4 @@
 import pyodbc 
-from appJar import gui
 def connect():
     server = 'tcp:[azure sql server address ].database.windows.net' 
     database = 'database name' 
@@ -155,88 +154,7 @@ def main(tables):
         Schema,TableName = table.split('.',1)
         generateScript(Schema,TableName,connection,f)
 
-server=None
-database=None
-username=''
-password=''
-def checkConnection(server,pwd,db,user):
-    server = server#'tcp:{0}'.format(server) 
-    database = db 
-    username = user 
-    password = pwd
-    if len(username)!=0:
-        cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER=tcp:'+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
-    else:
-        cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+'username=fareast\sahemant;DATABASE='+database+';Trusted_Connection=yes;')
-    return cnxn
 
-
-def checkBoxButtonsHandler(button):
-    if button=="Cancel":
-        app2.stop()
-        exit()
-    else:
-        checkBoxes = app2.getAllCheckBoxes()
-        keys=checkBoxes.keys()
-        tableNames=list()
-        for k in keys:
-            if checkBoxes[k]:
-                tableNames.append(k)
-        app2.stop()
-        print 'Generating Scripts'
-        main(tableNames)
-        
-
-def selectTables(conn):
-    global app2
-    app2.startScrollPane("scroller")
-    query = 'select TABLE_SCHEMA,TABLE_NAME from INFORMATION_SCHEMA.COLUMNS Group by TABLE_NAME,TABLE_SCHEMA order by TABLE_SCHEMA,TABLE_NAME '
-    cursor = conn.execute(query)
-    rows=cursor.fetchall()
-    for r in rows:
-        app2.addCheckBox(r[0]+'.'+r[1])
-    app2.stopScrollPane()
-    app2.addButtons(["Ok","Cancel"],checkBoxButtonsHandler)
-
-def mainButtonHandler(button):
-    global app
-    global app2
-    global connection
-    if button == "Cancel":
-        app.stop()
-        exit()
-    else:
-        server = app.getEntry("Server")
-        pwd = app.getEntry("Password")
-        db = app.getEntry("Database")
-        user = app.getEntry("username")
-        try:
-            connection = checkConnection(server,pwd,db,user)
-            app.stop()
-            try:
-                app2 = gui("Script Generator","400x500")
-                selectTables(connection)
-                app2.go()
-            except Exception as ex:
-                print ex
-        except:
-            try:
-                app.infoBox('error','Error Connecting Database')
-                #app.addLabel("error","Error Connecting Server")
-            except:
-                pass
-def gui2():
-    global app
-    app=gui("Script Generator","400x500")
-    app.addLabel("Server: ")
-    app.addLabelEntry("Server")
-    app.addLabelEntry("username")
-    app.addLabelSecretEntry("Password")
-    app.addLabelEntry("Database")
-    app.addButtons(["Submit","Cancel"],mainButtonHandler)
-    app.go()
-    
-#gui2()
 connection=connect()
 hierarchyListQuery = open('hirarchyList.txt','r').read()
 tableListCursor = connection.execute(hierarchyListQuery)
