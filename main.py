@@ -56,6 +56,10 @@ def generateScript(SchemaName,TableName,conn,f):
         length = ''
         if r.CHARACTER_MAXIMUM_LENGTH:
             length = '('+str(r.CHARACTER_MAXIMUM_LENGTH)+')'
+        elif r.NUMERIC_SCALE and r.NUMERIC_PRECISION:
+            if int(r.NUMERIC_SCALE)>0:
+                length = '({0},{1})'.format(str(r.NUMERIC_PRECISION,r.NUMERIC_SCALE))
+
         nullable=''
         if r.IS_NULLABLE == 'NO':
             nullable = 'not null'
@@ -66,7 +70,7 @@ def generateScript(SchemaName,TableName,conn,f):
         x = '['+r.COLUMN_NAME+'] '+r.DATA_TYPE+''+length+' '+nullable
         columnNames.append(x)
         i+=1
-    f.write('SELECT * INTO [{0}] FROM\n'.format(tempTableName,(",".join(columnNames))))
+    f.write('CREATE TABLE [{0}] ( {1} )\n'.format(tempTableName,(",".join(columnNames))))
     columnParamList = ",".join(realColumnNames)
     query4 = 'select {0} from [{1}].[{2}]'.format(columnParamList,SchemaName,TableName)
     #print query4
@@ -206,6 +210,7 @@ def main():
             finalTables.append(t)
     start(finalTables)
     print processed
+    print 'Check Output.sql file for Merge Script.'
 main()
 
 
