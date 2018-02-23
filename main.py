@@ -197,7 +197,9 @@ def main():
         print 'Some Error Reading Config File'
         return
     connection=connect(serverLocation,databaseName,username,password)
-    hierarchyListQuery = open('hierarchyList.sql','r').read()
+    hierarchyListQuery = None
+    with open('hierarchyList.sql','r') as f:
+        hierarchyListQuery = f.read()
     tableListCursor = connection.execute(hierarchyListQuery)
     rows = tableListCursor.fetchall()
     tableNames = list()
