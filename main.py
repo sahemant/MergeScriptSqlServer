@@ -155,31 +155,34 @@ def main(tables):
         generateScript(Schema,TableName,connection,f)
 
 
-connection=connect()
-hierarchyListQuery = open('hirarchyList.txt','r').read()
-tableListCursor = connection.execute(hierarchyListQuery)
-rows = tableListCursor.fetchall()
-tableNames = list()
-for r in rows:
-    tableNames.append(r[0]+'.'+r[1])
-tableNames = tableNames[::-1]
-connection.close()
-connection=connect()
 
-requiredTables = [
-'App.ProfileLevel'
+def main():
+    global connection
+    connection=connect()
+    hierarchyListQuery = open('hierarchyList.sql','r').read()
+    tableListCursor = connection.execute(hierarchyListQuery)
+    rows = tableListCursor.fetchall()
+    tableNames = list()
+    for r in rows:
+        tableNames.append(r[0]+'.'+r[1])
+    tableNames = tableNames[::-1]
+    connection.close()
+    connection=connect()
 
-    ]
+    requiredTables = [
+    'App.ProfileLevel'
 
-finalTables = list()
-processed = 0
-print tableNames
-for t in tableNames:
-    if t in requiredTables:
-        print t
-        processed+=1
-        finalTables.append(t)
-main(finalTables)
-print processed
+        ]
+
+    finalTables = list()
+    processed = 0
+    print tableNames
+    for t in tableNames:
+        if t in requiredTables:
+            print t
+            processed+=1
+            finalTables.append(t)
+    main(finalTables)
+    print processed
 
 
