@@ -18,7 +18,7 @@ def generateScript(SchemaName,TableName,conn,f):
         flagIdentity = True
     else:
         print 'no identity for {0}.{1}'.format(SchemaName,TableName) 
-    query ='select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_SCHEMA = \'{0}\' and TABLE_NAME = \'{1}\' and CONSTRAINT_TYPE = \'PRIMARY KEY\' '.format(SchemaName,TableName)
+    query ='select CONSTRAINT_NAME from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_SCHEMA = \'{0}\' and TABLE_NAME = \'{1}\' and CONSTRAINT_TYPE = \'PRIMARY KEY\' '.format(SchemaName,TableName)
     #print query
     cursor = conn.execute(query)
     
@@ -27,7 +27,7 @@ def generateScript(SchemaName,TableName,conn,f):
     for row in rows:
         constraint_names.append('\''+row.CONSTRAINT_NAME+'\'')
     constraint_in = '( {0} )'.format((",".join(constraint_names)))
-    query2 = 'select * from INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE where TABLE_SCHEMA = \'{0}\' and TABLE_NAME = \'{1}\' and CONSTRAINT_NAME IN {2}'.format(SchemaName,TableName,constraint_in)
+    query2 = 'select COLUMN_NAME from INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE where TABLE_SCHEMA = \'{0}\' and TABLE_NAME = \'{1}\' and CONSTRAINT_NAME IN {2}'.format(SchemaName,TableName,constraint_in)
     #print query2
     try:
         cursor = conn.execute(query2)
@@ -39,13 +39,25 @@ def generateScript(SchemaName,TableName,conn,f):
     pk_names = list()
     for row in rows:
         pk_names.append(row.COLUMN_NAME)
-    query3 = 'select * from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA =\'{0}\' and TABLE_NAME=\'{1}\''.format(SchemaName,TableName)
+    query3 = '''
+                select I_S.COLUMN_NAME,I_S.CHARACTER_MAXIMUM_LENGTH,I_S.NUMERIC_SCALE,I_S.NUMERIC_PRECISION,I_S.IS_NULLABLE,DATA_TYPE from INFORMATION_SCHEMA.COLUMNS as I_S
+                inner join sys.tables T
+                on I_S.TABLE_NAME = T.name
+                inner join sys.schemas sch
+                on sch.schema_id = T.schema_id 
+                inner join sys.columns C
+                on C.object_id = T.object_id and C.name = I_S.COLUMN_NAME
+                where TABLE_SCHEMA = '{0}' and TABLE_NAME = '{1}' and sch.name = '{0}' and generated_always_type = 0
+            '''
+    query3 = query3.format(SchemaName,TableName)
     try:
         cursor = conn.execute(query3)
-    except:
+    except Exception as ex:
+        print ex
         print query3
         return
     rows = cursor.fetchall()
+    print 'rows we got : '+str(len(rows))
     tempTableName = '#'+SchemaName+TableName
     columnNames =list()
     realColumnNames=list()
@@ -58,7 +70,7 @@ def generateScript(SchemaName,TableName,conn,f):
             length = '('+str(r.CHARACTER_MAXIMUM_LENGTH)+')'
         elif r.NUMERIC_SCALE and r.NUMERIC_PRECISION:
             if int(r.NUMERIC_SCALE)>0:
-                length = '({0},{1})'.format(str(r.NUMERIC_PRECISION,r.NUMERIC_SCALE))
+                length = '({0},{1})'.format(str(r.NUMERIC_PRECISION),str(r.NUMERIC_SCALE))
 
         nullable=''
         if r.IS_NULLABLE == 'NO':
