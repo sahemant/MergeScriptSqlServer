@@ -4,7 +4,7 @@ Wondering what is this? Great.
 This script will give all the tables in dependency order,
 So it can be used to generate parent tables merge script before child tables.
 
-Credits:Jamie Thomson ( Someone from Internet )
+Credits:Jamie Thomson
 Source: http://sqlblog.com/blogs/jamie_thomson/archive/2009/09/08/deriving-a-list-of-tables-in-dependency-order.aspx
 
 */
